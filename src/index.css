@@ -1,0 +1,122 @@
+/* Responsive Design System */
+:root {
+  --primary: #1dbb54;
+  --primary-dark: #1aa34a;
+  --secondary: #000000;
+  --bg: #f8fafc;
+  --card-bg: #ffffff;
+  --text-main: #111827;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  
+  /* Responsive Spacing Tokens */
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 20px;
+  --space-lg: 32px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--bg);
+  color: var(--text-main);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Base Layout */
+.page-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: clamp(12px, 3vw, 32px);
+}
+
+/* 📱 Mobile Fine-tuning (<480px) */
+@media (max-width: 480px) {
+  :root {
+    --space-md: 16px;
+    --space-lg: 24px;
+  }
+}
+
+/* 📑 Tablet Optimization (481px - 1024px) */
+@media (min-width: 481px) and (max-width: 1024px) {
+  :root {
+    --space-md: 24px;
+    --space-lg: 40px;
+  }
+}
+
+/* 🖥️ TV/Projector Mode (1920px+) */
+@media (min-width: 1920px) {
+  :root {
+    --space-md: 48px;
+    --space-lg: 80px;
+  }
+  body { font-size: 22px; }
+  h1 { font-size: 48px; }
+  h2 { font-size: 36px; }
+}
+
+/* Component Level Utilities */
+.card {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: var(--space-md);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 4px 12px rgba(29, 187, 84, 0.2);
+}
+
+.btn-primary:active {
+  transform: scale(0.96);
+}
+
+/* Grid Layouts */
+.responsive-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+@media (max-width: 480px) {
+  .responsive-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* TV Mode Enhancement */
+@media (min-width: 2500px) {
+  .page-container { max-width: 2200px; }
+  .card { padding: 40px; border-radius: 32px; }
+  .btn { padding: 20px 40px; font-size: 24px; }
+}
