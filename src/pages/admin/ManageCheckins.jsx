@@ -277,16 +277,22 @@ export default function ManageCheckins({ showToast }) {
   const filteredData = useMemo(() => {
     const q = searchQuery.toLowerCase().trim()
     return data.filter(item => {
+      // Text search
       if (q) {
         const name = (item.participantName || '').toLowerCase()
         const team = (item.teamName || '').toLowerCase()
         const phone = (item.phone || '').toLowerCase()
         if (!name.includes(q) && !team.includes(q) && !phone.includes(q)) return false
       }
+      // Team filter
       if (filterTeam !== 'All' && (item.teamName || '') !== filterTeam) return false
+      // Check-in filter
       if (filterCheckin !== 'All' && (item.checkinStatus || 'Not Checked-in') !== filterCheckin) return false
+      // Kits filter
       if (filterKits !== 'All' && (item.kitsStatus || 'Not Received') !== filterKits) return false
+      // Stay filter
       if (filterStay !== 'All' && (item.stayStatus || 'Off-campus') !== filterStay) return false
+      // Inspirian filter
       if (filterInspirian !== 'All') {
         if (filterInspirian === 'Yes' && item.inspirianStatus !== 'Yes') return false
         if (filterInspirian === 'No' && item.inspirianStatus === 'Yes') return false
@@ -297,13 +303,14 @@ export default function ManageCheckins({ showToast }) {
 
   // ── Derived: group filtered data by team ──
   const groupedByTeam = useMemo(() => {
-    if (filterTeam !== 'All') return null
+    if (filterTeam !== 'All') return null // no grouping when a specific team is already selected
     const groups = {}
     filteredData.forEach(item => {
       const team = item.teamName || '(No Team)'
       if (!groups[team]) groups[team] = []
       groups[team].push(item)
     })
+    // Sort team keys alphabetically
     const sorted = Object.keys(groups).sort((a, b) =>
       a.localeCompare(b, undefined, { sensitivity: 'base' })
     )
@@ -346,24 +353,39 @@ export default function ManageCheckins({ showToast }) {
 
   const handleDownloadPDF = useCallback(() => {
     const doc = new jsPDF()
+
+    // Add Title
     doc.setFontSize(18)
     doc.setTextColor(17, 24, 39)
     doc.text('Independent Logistics Sheet', 14, 22)
+
+    // Add timestamp + filter info subtitle
     doc.setFontSize(10)
     doc.setTextColor(100, 116, 139)
     const filterInfo = hasActiveFilters ? ' (Filtered)' : ''
     doc.text(`Generated on: ${new Date().toLocaleString()}${filterInfo}`, 14, 30)
 
     const tableColumn = ["Participant Name", "Team Name", "Phone No.", "Check-in", "Kits", "Stay", "Inspirian"]
-    const tableRows = filteredData.map(item => [
-      item.participantName || 'Unset',
-      item.teamName || 'Unset',
-      item.phone || 'Unset',
-      item.checkinStatus || 'Not Checked-in',
-      item.kitsStatus || 'Not Received',
-      item.stayStatus || 'Off-campus',
-      item.inspirianStatus === 'Yes' ? 'Yes' : item.inspirianStatus === 'No' ? `No${item.inspirianNote ? ' - ' + item.inspirianNote : ''}` : ''
-    ])
+    const tableRows = []
+
+    // Export only filtered data
+    filteredData.forEach(item => {
+      const inspirian = item.inspirianStatus === 'Yes'
+        ? 'Yes'
+        : item.inspirianStatus === 'No'
+          ? `No${item.inspirianNote ? ' - ' + item.inspirianNote : ''}`
+          : ''
+      const rowData = [
+        item.participantName || 'Unset',
+        item.teamName || 'Unset',
+        item.phone || 'Unset',
+        item.checkinStatus || 'Not Checked-in',
+        item.kitsStatus || 'Not Received',
+        item.stayStatus || 'Off-campus',
+        inspirian
+      ]
+      tableRows.push(rowData)
+    })
 
     autoTable(doc, {
       head: [tableColumn],
@@ -376,6 +398,121 @@ export default function ManageCheckins({ showToast }) {
 
     doc.save(`Logistics_Sheet_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`)
     showToast('Downloading PDF...')
+  }, [filteredData, hasActiveFilters, showToast])
+
+  const renderRow = useCallback(item => (
+    <CheckinRow
+      key={item.id}
+      item={item}
+      onUpdate={handleUpdate}
+      onBatchUpdate={handleBatchUpdate}
+      onDelete={handleDelete}
+      editingNameId={editingNameId}
+      editNameValue={editNameValue}
+      onEditNameStart={handleEditNameStart}
+      onEditNameChange={handleEditNameChange}
+      onEditNameSave={handleSaveName}
+      onEditNameCancel={handleEditNameCancel}
+    />
+  ), [handleUpdate, handleBatchUpdate, handleDelete, editingNameId, editNameValue, handleEditNameStart, handleEditNameChange, handleSaveName, handleEditNameCancel])
+
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading logistics sheet...</div>
+
+  return (
+    <div style={{ padding: '0 clamp(16px, 4vw, 32px)', paddingBottom: '32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#111827', margin: 0 }}>Independent Logistics Sheet ({data.length})</h2>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button onClick={handleDownloadPDF} style={{ padding: '10px 16px', background: 'white', color: '#1dbb54', border: '2px solid #1dbb54', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>Download PDF</button>
+          <button onClick={() => setIsCreating(!isCreating)} style={{ padding: '10px 20px', background: '#1dbb54', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, cursor: 'pointer' }}>{isCreating ? 'Cancel' : '+ Create New Entry'}</button>
+        </div>
+      </div>
+
+      <div style={{ background: 'white', padding: '16px 20px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 280px', minWidth: '200px' }}>
+            <input type="text" placeholder="Search by name, team, or phone..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ ...inputStyle, paddingLeft: '36px' }} />
+          </div>
+          <div style={{ padding: '8px 14px', background: hasActiveFilters ? '#eff6ff' : '#f8fafc', border: `1px solid ${hasActiveFilters ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: '10px' }}>Showing {filteredData.length} of {data.length}</div>
+          {hasActiveFilters && <button onClick={clearFilters} style={{ padding: '8px 14px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '10px' }}>Clear Filters</button>}
+        </div>
+
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 160px', minWidth: '140px' }}>
+            <label style={filterLabelStyle}>Team</label>
+            <select value={filterTeam} onChange={e => setFilterTeam(e.target.value)} style={filterSelectStyle(filterTeam !== 'All')}>
+              <option value="All">All Teams</option>
+              {teamNames.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: '1 1 140px', minWidth: '130px' }}>
+            <label style={filterLabelStyle}>Check-in</label>
+            <select value={filterCheckin} onChange={e => setFilterCheckin(e.target.value)} style={filterSelectStyle(filterCheckin !== 'All')}>
+              <option value="All">All</option>
+              <option value="Checked-in">Checked-in</option>
+              <option value="Not Checked-in">Not Checked-in</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {isCreating && (
+        <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600 }}>Participant Name *</label>
+            <input style={inputStyle} value={newItem.participantName} onChange={e => setNewItem({ ...newItem, participantName: e.target.value })} />
+          </div>
+          <div>
+            <button onClick={handleCreate} style={{ padding: '10px 16px', background: '#1dbb54', color: 'white', border: 'none', borderRadius: '8px' }}>Confirm Entry</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ background: 'white', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              <tr>
+                <th style={thStyle}>Participant Name</th>
+                <th style={thStyle}>Team Name</th>
+                <th style={thStyle}>Phone No.</th>
+                <th style={thStyle}>Check-in</th>
+                <th style={thStyle}>Kits</th>
+                <th style={thStyle}>Stay</th>
+                <th style={thStyle}>Inspirian</th>
+                <th style={{ ...thStyle, width: '80px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody style={{ fontSize: '14px' }}>
+              {filteredData.length === 0 ? (
+                <tr><td colSpan="8" style={{ padding: '40px 24px', textAlign: 'center', color: '#64748b' }}>{data.length === 0 ? <>Independent sheet is empty.</> : <div>No results match your filters</div>}</td></tr>
+              ) : groupedByTeam ? (
+                groupedByTeam.map(group => (
+                  <React.Fragment key={group.team}>
+                    <tr>
+                      <td colSpan="8" style={{ padding: '10px 20px', background: '#f0fdf4', borderBottom: '1px solid #dcfce7' }}>
+                        <strong style={{ color: '#16a34a' }}>{group.team}</strong> <span style={{ marginLeft: 8, color: '#86efac' }}>({group.items.length})</span>
+                      </td>
+                    </tr>
+                    {group.items.map(renderRow)}
+                  </React.Fragment>
+                ))
+              ) : (
+                filteredData.map(renderRow)
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const thStyle = { padding: '16px 20px', fontSize: '12px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }
+const inputStyle = { padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', width: '100%', outline: 'none', boxSizing: 'border-box' }
+const selectStyle = isActive => ({ padding: '6px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', fontSize: '13px', width: '100%', outline: 'none', background: isActive ? '#dcfce7' : '#fff', color: isActive ? '#16a34a' : '#1e293b' })
+const filterLabelStyle = { display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }
+const filterSelectStyle = isActive => ({ padding: '8px 10px', borderRadius: '8px', border: `1px solid ${isActive ? '#93c5fd' : '#e2e8f0'}`, fontSize: '13px', width: '100%', outline: 'none', background: isActive ? '#eff6ff' : '#f8fafc', color: isActive ? '#2563eb' : '#1e293b' })
   }, [filteredData, hasActiveFilters, showToast])
 
   // ── Render a row via the memoized component ──
@@ -466,6 +603,7 @@ export default function ManageCheckins({ showToast }) {
               onChange={e => setSearchQuery(e.target.value)}
               style={{
                 ...inputStyle,
+                paddingLeft: '36px',
                 padding: '10px 12px 10px 36px',
                 fontSize: '14px',
                 borderRadius: '10px',
@@ -769,8 +907,6 @@ export default function ManageCheckins({ showToast }) {
   )
 }
 
-// ── Shared styles (defined outside component to avoid re-creation) ──
-
 const thStyle = {
   padding: '16px 20px',
   fontSize: '12px',
@@ -795,35 +931,8 @@ const selectStyle = (isActive) => ({
   padding: '6px 10px',
   borderRadius: '6px',
   border: '1px solid #e2e8f0',
-  fontSize: '13px',
-  width: '100%',
-  outline: 'none',
-  background: isActive ? '#dcfce7' : '#fff',
+  fontSize: isActive ? '#dcfce7' : '#fff',
   color: isActive ? '#16a34a' : '#1e293b',
   fontWeight: isActive ? 700 : 400,
   cursor: 'pointer'
-})
-
-const filterLabelStyle = {
-  display: 'block',
-  fontSize: '11px',
-  fontWeight: 700,
-  color: '#64748b',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-  marginBottom: '4px'
-}
-
-const filterSelectStyle = (isActive) => ({
-  padding: '8px 10px',
-  borderRadius: '8px',
-  border: `1px solid ${isActive ? '#93c5fd' : '#e2e8f0'}`,
-  fontSize: '13px',
-  width: '100%',
-  outline: 'none',
-  background: isActive ? '#eff6ff' : '#f8fafc',
-  color: isActive ? '#2563eb' : '#1e293b',
-  fontWeight: isActive ? 600 : 400,
-  cursor: 'pointer',
-  transition: 'all 0.2s'
 })

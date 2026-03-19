@@ -151,7 +151,7 @@ export default function LiveStatus() {
                         {slot.mentorName}
                       </h3>
                       <p style={{ color: '#6b7280', fontSize: '13px' }}>
-                        {slot.companyName} · Room {slot.roomNumber}
+                        Room {slot.roomNumber}
                       </p>
                     </div>
                   </div>

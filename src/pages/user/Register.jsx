@@ -37,16 +37,16 @@ export default function Register() {
     return () => { unsub1(); unsub2() }
   }, [])
 
-  const mySortedRegs = profile 
+  const mySortedRegs = profile
     ? [...registrations].filter(r => r.teamName === profile.teamName).sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 9999999999;
-        const timeB = b.createdAt?.seconds || 9999999999;
-        return timeA - timeB;
-      })
+      const timeA = a.createdAt?.seconds || 9999999999;
+      const timeB = b.createdAt?.seconds || 9999999999;
+      return timeA - timeB;
+    })
     : []
 
   const activeRegs = mySortedRegs.filter(r => r.status !== 'rejected')
-  const myRegLimitReached = activeRegs.length >= 4
+
 
   const getMyReg = (slotId) => {
     // Return the active one if exists, otherwise the rejected one so they still see the badge
@@ -64,9 +64,8 @@ export default function Register() {
     setError('')
     setLoading(true)
     try {
-      if (activeRegs.length >= 4) {
-        setError('You can only apply for a maximum of 4 mentors.')
-        setLoading(false)
+      if (false) {
+        // No limit enforced
         return
       }
 
@@ -111,10 +110,10 @@ export default function Register() {
 
       <div style={{ marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-          <h2 style={{ 
-            fontSize: 'clamp(22px, 5vw, 28px)', 
-            fontWeight: 800, 
-            color: '#111827', 
+          <h2 style={{
+            fontSize: 'clamp(22px, 5vw, 28px)',
+            fontWeight: 800,
+            color: '#111827',
             margin: 0
           }}>
             Choose Your Mentors
@@ -201,7 +200,7 @@ export default function Register() {
                 onRequest={() => setPopup(slot.id)}
                 status={currentStatus}
                 priority={computedPriority}
-                limitReached={myRegLimitReached}
+                limitReached={false}
               />
             )
           })
@@ -374,7 +373,7 @@ function SlotCard({ slot, onRequest, status, priority, limitReached }) {
               Priority {priority}
             </div>
           )}
-          
+
           <div style={{ display: 'flex', gap: '6px' }}>
             {slot.linkedinLink && (
               <a
@@ -505,8 +504,8 @@ function SlotCard({ slot, onRequest, status, priority, limitReached }) {
             letterSpacing: '0.3px'
           }}
         >
-          {status === 'rejected' 
-            ? 'Rejected' 
+          {status === 'rejected'
+            ? 'Rejected'
             : (status ? 'Already Requested' : (limitReached ? 'Max Limit Reached' : 'Request Slot'))}
         </button>
       </div>
