@@ -14,6 +14,9 @@ import {
 } from '../../firebase/firestore'
 import ManageSlots from './ManageSlots'
 import ManageRegistrations from './ManageRegistrations'
+import ManageUsers from './ManageUsers'
+import ManageCheckins from './ManageCheckins'
+import ManageSettings from './ManageSettings'
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -48,7 +51,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ minHeight: '100vh' }}>
       {/* Toast Notification */}
       {toast && (
         <div style={{
@@ -249,6 +252,63 @@ export default function AdminDashboard() {
           >
             Requests & Queue
           </button>
+          <button
+            onClick={() => setActiveTab('users')}
+            style={{
+              flex: 1,
+              minWidth: 'max-content',
+              padding: '14px clamp(12px, 3vw, 24px)',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'users' ? '#1dbb54' : 'transparent',
+              color: activeTab === 'users' ? 'white' : '#64748b',
+              fontWeight: 800,
+              fontSize: 'clamp(12px, 2.5vw, 14px)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Manage Users
+          </button>
+          <button
+            onClick={() => setActiveTab('checkins')}
+            style={{
+              flex: 1,
+              minWidth: 'max-content',
+              padding: '14px clamp(12px, 3vw, 24px)',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'checkins' ? '#1dbb54' : 'transparent',
+              color: activeTab === 'checkins' ? 'white' : '#64748b',
+              fontWeight: 800,
+              fontSize: 'clamp(12px, 2.5vw, 14px)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Check-ins
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            style={{
+              flex: 1,
+              minWidth: 'max-content',
+              padding: '14px clamp(12px, 3vw, 24px)',
+              borderRadius: '12px',
+              border: 'none',
+              background: activeTab === 'settings' ? '#1dbb54' : 'transparent',
+              color: activeTab === 'settings' ? 'white' : '#64748b',
+              fontWeight: 800,
+              fontSize: 'clamp(12px, 2.5vw, 14px)',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Other Action
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -263,13 +323,26 @@ export default function AdminDashboard() {
               showToast={showToast}
               showConfirm={showConfirm}
             />
-          ) : (
+          ) : activeTab === 'registrations' ? (
             <div style={{ padding: '32px' }}>
               <ManageRegistrations
                 showToast={showToast}
                 showConfirm={showConfirm}
               />
             </div>
+          ) : activeTab === 'users' ? (
+            <ManageUsers 
+              showToast={showToast}
+              showConfirm={showConfirm}
+            />
+          ) : activeTab === 'checkins' ? (
+            <ManageCheckins
+              showToast={showToast}
+            />
+          ) : (
+            <ManageSettings
+              showToast={showToast}
+            />
           )}
         </div>
       </div>

@@ -29,7 +29,7 @@ export default function UserApp() {
   const safePaddingBottom = isMobile ? '80px' : '0'
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', paddingBottom: safePaddingBottom }}>
+    <div style={{ minHeight: '100vh', paddingBottom: safePaddingBottom }}>
       {/* Header Bar */}
       <div style={{
         background: '#ffffff',

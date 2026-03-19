@@ -74,3 +74,94 @@ export const deleteRegistration = async (id) => {
   const regRef = doc(db, 'registrations', id)
   return deleteDoc(regRef)
 }
+
+// --- Users (Auth Accounts Track) ---
+
+export const listenToUsers = (callback) => {
+  const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    const users = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    callback(users)
+  })
+}
+
+export const updateUserTeamName = async (id, teamName) => {
+  const userRef = doc(db, 'users', id)
+  return updateDoc(userRef, { teamName })
+}
+
+export const updateUserLogistics = async (id, data) => {
+  const userRef = doc(db, 'users', id)
+  return updateDoc(userRef, data)
+}
+
+export const createNewUser = async (data) => {
+  return addDoc(collection(db, 'users'), {
+    ...data,
+    role: 'user',
+    createdAt: new Date().toISOString()
+  })
+}
+
+// --- Checkins (Independent Logistics Sheet) ---
+
+export const listenToCheckins = (callback) => {
+  const q = query(collection(db, 'checkins'), orderBy('createdAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+    callback(data)
+  })
+}
+
+export const createCheckin = async (data) => {
+  return addDoc(collection(db, 'checkins'), {
+    ...data,
+    createdAt: new Date().toISOString()
+  })
+}
+
+export const updateCheckin = async (id, data) => {
+  const ref = doc(db, 'checkins', id)
+  return updateDoc(ref, data)
+}
+
+export const deleteCheckin = async (id) => {
+  const ref = doc(db, 'checkins', id)
+  return deleteDoc(ref)
+}
+
+export const deleteUser = async (id) => {
+  const ref = doc(db, 'users', id)
+  return deleteDoc(ref)
+}
+
+// --- Settings (Global App Config) ---
+
+export const listenToSettings = (callback) => {
+  const ref = doc(db, 'settings', 'registration')
+  return onSnapshot(ref, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.data())
+    } else {
+      callback({ isRegistrationOpen: true })
+    }
+  })
+}
+
+export const updateRegistrationStatus = async (isOpen) => {
+  const ref = doc(db, 'settings', 'registration')
+  return updateDoc(ref, { isRegistrationOpen: isOpen }).catch(async (err) => {
+    // If doc doesn't exist, create it
+    if (err.code === 'not-found') {
+      const { setDoc } = await import('firebase/firestore')
+      return setDoc(ref, { isRegistrationOpen: isOpen })
+    }
+    throw err
+  })
+}

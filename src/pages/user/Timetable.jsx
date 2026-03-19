@@ -26,9 +26,9 @@ export default function Timetable() {
     if (slots.length === 0) return { mentors: [], maxTurns: 0 }
 
     const mentorRows = slots.map(slot => {
-      // Get and sort registrations for this mentor
+      // Get and sort registrations for this mentor (only approved/active ones)
       const slotRegs = registrations
-        .filter(r => r.slotId === slot.id)
+        .filter(r => r.slotId === slot.id && (r.status === 'approved' || r.done || r.checkedIn))
         .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
 
       return {

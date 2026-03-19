@@ -12,6 +12,7 @@ export default function Register() {
   const [error, setError] = useState('')
   const [registrations, setRegistrations] = useState([])
   const [profile, setProfile] = useState(null)
+  const [showInfo, setShowInfo] = useState(false)
 
   const { user } = useAuthState()
 
@@ -36,15 +37,26 @@ export default function Register() {
     return () => { unsub1(); unsub2() }
   }, [])
 
-  const getMyStatus = (slotId) => {
-    if (!profile) return null
-    const reg = registrations.find(
-      r => r.slotId === slotId && r.email === profile.email
-    )
-    if (!reg) return null
-    if (reg.done) return 'done'
-    if (reg.checkedIn) return 'checkedIn'
-    return reg.status
+  const mySortedRegs = profile 
+    ? [...registrations].filter(r => r.teamName === profile.teamName).sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 9999999999;
+        const timeB = b.createdAt?.seconds || 9999999999;
+        return timeA - timeB;
+      })
+    : []
+
+  const activeRegs = mySortedRegs.filter(r => r.status !== 'rejected')
+  const myRegLimitReached = activeRegs.length >= 4
+
+  const getMyReg = (slotId) => {
+    // Return the active one if exists, otherwise the rejected one so they still see the badge
+    return activeRegs.find(r => r.slotId === slotId) || mySortedRegs.find(r => r.slotId === slotId)
+  }
+
+  const getMyPriority = (slotId) => {
+    // Only active (non-rejected) registrations get a priority rating
+    const idx = activeRegs.findIndex(r => r.slotId === slotId)
+    return idx !== -1 ? idx + 1 : null
   }
 
   const handleConfirmRegistration = async () => {
@@ -52,6 +64,12 @@ export default function Register() {
     setError('')
     setLoading(true)
     try {
+      if (activeRegs.length >= 4) {
+        setError('You can only apply for a maximum of 4 mentors.')
+        setLoading(false)
+        return
+      }
+
       const slot = slots.find(s => s.id === popup)
       await registerTeam({
         teamName: profile.teamName,
@@ -91,10 +109,61 @@ export default function Register() {
         </div>
       )}
 
+      <div style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <h2 style={{ 
+            fontSize: 'clamp(22px, 5vw, 28px)', 
+            fontWeight: 800, 
+            color: '#111827', 
+            margin: 0
+          }}>
+            Choose Your Mentors
+          </h2>
+          <button
+            onClick={() => setShowInfo(!showInfo)}
+            style={{
+              width: '26px',
+              height: '26px',
+              borderRadius: '50%',
+              background: showInfo ? '#f59e0b' : '#f1f5f9',
+              color: showInfo ? 'white' : '#94a3b8',
+              border: '1px solid',
+              borderColor: showInfo ? '#f59e0b' : '#e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              flexShrink: 0
+            }}
+            title="Important Note"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+            </svg>
+          </button>
+        </div>
+
+        {showInfo && (
+          <div style={{
+            background: '#fff8f1',
+            borderLeft: '4px solid #f59e0b',
+            padding: '16px 20px',
+            borderRadius: '8px',
+            color: '#78350f',
+            fontSize: '15px',
+            lineHeight: '1.6',
+            marginTop: '8px'
+          }}>
+            <strong>Note:</strong> Please select your mentors carefully according to your preferences. Your selections will be ranked by priority, so we strongly recommend choosing your most preferred mentor first. <strong>Once a request is submitted, it cannot be cancelled.</strong>
+          </div>
+        )}
+      </div>
+
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 'clamp(16px, 3vw, 32px)'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+        gap: 'clamp(20px, 3vw, 32px)'
       }}>
         {slots.length === 0 ? (
           <div style={{
@@ -118,14 +187,24 @@ export default function Register() {
             </p>
           </div>
         ) : (
-          slots.map(slot => (
-            <SlotCard
-              key={slot.id}
-              slot={slot}
-              onRequest={() => setPopup(slot.id)}
-              status={getMyStatus(slot.id)}
-            />
-          ))
+          slots.map(slot => {
+            const myReg = getMyReg(slot.id)
+            const computedPriority = getMyPriority(slot.id)
+            let currentStatus = null
+            if (myReg) {
+              currentStatus = myReg.done ? 'done' : (myReg.checkedIn ? 'checkedIn' : myReg.status)
+            }
+            return (
+              <SlotCard
+                key={slot.id}
+                slot={slot}
+                onRequest={() => setPopup(slot.id)}
+                status={currentStatus}
+                priority={computedPriority}
+                limitReached={myRegLimitReached}
+              />
+            )
+          })
         )}
       </div>
 
@@ -205,11 +284,11 @@ export default function Register() {
   )
 }
 
-function SlotCard({ slot, onRequest, status }) {
+function SlotCard({ slot, onRequest, status, priority, limitReached }) {
   const [hovered, setHovered] = useState(false)
   const [showBio, setShowBio] = useState(false)
 
-  const hasIcons = !!(slot.linkedinLink || slot.bio)
+  const hasIcons = !!(slot.linkedinLink || slot.bio || priority)
 
   const getBadge = () => {
     if (!status) return null
@@ -270,45 +349,63 @@ function SlotCard({ slot, onRequest, status }) {
         position: 'relative'
       }}
     >
-      {/* Icons — top right corner */}
+      {/* Icons & Priority — top right corner */}
       {hasIcons && (
         <div style={{
           position: 'absolute',
           top: 'clamp(14px, 3vw, 20px)',
           right: 'clamp(14px, 3vw, 20px)',
           display: 'flex',
-          gap: '6px',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
+          gap: '8px',
           zIndex: 2
         }}>
-          {slot.linkedinLink && (
-            <a
-              href={slot.linkedinLink}
-              target="_blank"
-              rel="noreferrer"
-              onClick={e => e.stopPropagation()}
-              style={iconStyle}
-              title="LinkedIn"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a66c2">
-                <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-              </svg>
-            </a>
+          {priority && (
+            <div style={{
+              padding: '4px 10px',
+              borderRadius: '12px',
+              background: '#fef3c7',
+              color: '#d97706',
+              fontWeight: '800',
+              fontSize: '11px',
+              letterSpacing: '0.5px'
+            }}>
+              Priority {priority}
+            </div>
           )}
-          {slot.bio && (
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowBio(!showBio) }}
-              style={{
-                ...iconStyle,
-                background: showBio ? '#1dbb54' : '#fff',
-                borderColor: showBio ? '#1dbb54' : '#e5e7eb'
-              }}
-              title="View Info"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill={showBio ? '#fff' : '#64748b'}>
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
-              </svg>
-            </button>
-          )}
+          
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {slot.linkedinLink && (
+              <a
+                href={slot.linkedinLink}
+                target="_blank"
+                rel="noreferrer"
+                onClick={e => e.stopPropagation()}
+                style={iconStyle}
+                title="LinkedIn"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a66c2">
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                </svg>
+              </a>
+            )}
+            {slot.bio && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowBio(!showBio) }}
+                style={{
+                  ...iconStyle,
+                  background: showBio ? '#1dbb54' : '#fff',
+                  borderColor: showBio ? '#1dbb54' : '#e5e7eb'
+                }}
+                title="View Info"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill={showBio ? '#fff' : '#64748b'}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -337,27 +434,23 @@ function SlotCard({ slot, onRequest, status }) {
           }}
         />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h3 style={{
-            fontSize: 'clamp(20px, 5.5vw, 26px)',
-            fontWeight: 800,
-            color: '#111827',
-            marginBottom: '2px',
-            lineHeight: '1.25',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            {slot.mentorName}
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
+            <h3 style={{
+              fontSize: 'clamp(20px, 5.5vw, 26px)',
+              fontWeight: 800,
+              color: '#111827',
+              lineHeight: '1.25',
+              margin: 0
+            }}>
+              {slot.mentorName}
+            </h3>
+          </div>
           {slot.companyName && (
             <p style={{
               fontSize: 'clamp(15px, 4vw, 17px)',
               fontWeight: 600,
               color: '#1dbb54',
-              marginBottom: '1px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
+              marginBottom: '1px'
             }}>
               {slot.companyName}
             </p>
@@ -397,22 +490,24 @@ function SlotCard({ slot, onRequest, status }) {
         )}
         <button
           onClick={onRequest}
-          disabled={!!status && status !== 'rejected'}
+          disabled={!!status || limitReached}
           style={{
             width: '100%',
             padding: 'clamp(13px, 3.5vw, 16px)',
             borderRadius: '10px',
             border: 'none',
-            background: status && status !== 'rejected' ? '#f3f4f6' : '#1dbb54',
-            color: status && status !== 'rejected' ? '#9ca3af' : 'white',
+            background: !!status || limitReached ? '#f3f4f6' : '#1dbb54',
+            color: !!status || limitReached ? '#9ca3af' : 'white',
             fontWeight: 700,
             fontSize: 'clamp(14px, 4vw, 16px)',
-            cursor: status && status !== 'rejected' ? 'not-allowed' : 'pointer',
+            cursor: !!status || limitReached ? 'not-allowed' : 'pointer',
             transition: 'all 0.2s',
             letterSpacing: '0.3px'
           }}
         >
-          {status && status !== 'rejected' ? 'Already Requested' : 'Request Slot'}
+          {status === 'rejected' 
+            ? 'Rejected' 
+            : (status ? 'Already Requested' : (limitReached ? 'Max Limit Reached' : 'Request Slot'))}
         </button>
       </div>
     </div>

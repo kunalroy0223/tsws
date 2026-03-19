@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { auth, db } from '../firebase'
 import { onAuthStateChanged } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, onSnapshot } from 'firebase/firestore'
 
 export function useAuthState() {
   const [user, setUser] = useState(null)
@@ -9,27 +9,40 @@ export function useAuthState() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    let unsubSnapshot = null
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u)
+      
+      // Clear previous snapshot listener if it exists
+      if (unsubSnapshot) {
+        unsubSnapshot()
+        unsubSnapshot = null
+      }
+
       if (u) {
-        try {
-          const docRef = doc(db, 'users', u.uid)
-          const docSnap = await getDoc(docRef)
-          if (docSnap.exists() && docSnap.data().role) {
-            setRole(docSnap.data().role)
+        const docRef = doc(db, 'users', u.uid)
+        unsubSnapshot = onSnapshot(docRef, (snap) => {
+          if (snap.exists() && snap.data().role) {
+            setRole(snap.data().role)
           } else {
-            setRole('admin') // Admin created via AdminLogin has no user doc by default
+            setRole(null)
           }
-        } catch (error) {
-          console.error("Error fetching user role:", error)
+          setLoading(false)
+        }, (err) => {
+          console.error("Error fetching user role:", err)
           setRole('user')
-        }
+          setLoading(false)
+        })
       } else {
         setRole(null)
+        setLoading(false)
       }
-      setLoading(false)
     })
-    return () => unsub()
+
+    return () => {
+      unsubAuth()
+      if (unsubSnapshot) unsubSnapshot()
+    }
   }, [])
 
   return { user, role, loading }

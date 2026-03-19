@@ -236,7 +236,7 @@ export default function LiveStatus() {
                                 fontSize: '13px',
                                 minWidth: '28px'
                               }}>
-                                #{idx + 1}
+                                {idx + 1}
                               </span>
                               <div>
                                 <div style={{
@@ -246,12 +246,14 @@ export default function LiveStatus() {
                                 }}>
                                   {reg.teamName}
                                 </div>
-                                <div style={{
-                                  fontSize: '12px',
-                                  color: '#6b7280'
-                                }}>
-                                  {reg.leaderName}
-                                </div>
+                                {reg.leaderName && reg.leaderName !== 'N/A' && (
+                                  <div style={{
+                                    fontSize: '12px',
+                                    color: '#6b7280'
+                                  }}>
+                                    {reg.leaderName}
+                                  </div>
+                                )}
                                 {isDone && (
                                   <div style={{
                                     fontSize: '12px',

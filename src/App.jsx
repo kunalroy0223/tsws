@@ -23,7 +23,7 @@ function ProtectedRoute({ children, redirectTo, requiredRole }) {
   
   // If a specific role is required and user does not have it, redirect
   if (requiredRole && role !== requiredRole) {
-    return <Navigate to={role === 'admin' ? '/admin/dashboard' : '/'} />
+    return <Navigate to={redirectTo} />
   }
 
   return children

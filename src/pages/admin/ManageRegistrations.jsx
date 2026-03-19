@@ -92,11 +92,55 @@ export default function ManageRegistrations({ showToast, showConfirm }) {
     ...slot,
     regs: filtered
       .filter(r => r.slotId === slot.id)
-      .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+      .sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 9999999999;
+        const timeB = b.createdAt?.seconds || 9999999999;
+        return timeA - timeB;
+      })
   })).filter(slot => slot.regs.length > 0), [slots, filtered])
 
+  const regsByTeam = useMemo(() => {
+    const teamMap = {}
+    filtered.forEach(reg => {
+      // Do not show registrations for mentors (slots) that have been deleted
+      if (!slots.some(s => s.id === reg.slotId)) return;
+
+      const team = reg.teamName || 'Unknown Team'
+      if (!teamMap[team]) {
+        teamMap[team] = {
+          teamName: team,
+          regs: []
+        }
+      }
+      teamMap[team].regs.push(reg)
+    })
+    return Object.values(teamMap).sort((a, b) => a.teamName.localeCompare(b.teamName))
+  }, [filtered, slots])
+
+  const teamPriorities = useMemo(() => {
+    const map = {}
+    registrations.forEach(r => {
+      const team = r.teamName || 'Unknown Team'
+      if (!map[team]) map[team] = []
+      map[team].push(r)
+    })
+    const priorityMap = {}
+    Object.keys(map).forEach(team => {
+      map[team].sort((a, b) => {
+        const timeA = a.createdAt?.seconds || 9999999999;
+        const timeB = b.createdAt?.seconds || 9999999999;
+        return timeA - timeB;
+      })
+      map[team].forEach((r, idx) => {
+         priorityMap[r.id] = idx + 1
+      })
+    })
+    return priorityMap
+  }, [registrations])
+
   const tabs = [
-    { key: 'mentors', label: '🧑‍🏫 Mentor Queues' }
+    { key: 'mentors', label: '🧑‍🏫 Mentor Queues' },
+    { key: 'teams', label: '👥 Team Queues' }
   ]
 
   return (
@@ -254,6 +298,102 @@ export default function ManageRegistrations({ showToast, showConfirm }) {
                       handleMove={handleMove}
                       siblings={slot.regs}
                       showMentor={false}
+                      computedPriority={teamPriorities[reg.id]}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── BY TEAM VIEW ──────────────────────────────── */}
+      {view === 'teams' && (
+        <div style={{display: 'grid', gap: '20px'}}>
+          {regsByTeam.length === 0 ? (
+            <EmptyState message="No team registrations yet." />
+          ) : (
+            regsByTeam.map(team => (
+              <div key={team.teamName} style={{
+                background: 'white',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                border: '1px solid #e5e7eb',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.05)'
+              }}>
+                {/* Team header */}
+                <div style={{
+                  padding: '16px 24px',
+                  background: 'linear-gradient(135deg, #f8fafc, #eef2ff)',
+                  borderBottom: '1px solid #e5e7eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '14px'}}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '50%',
+                      background: '#4f46e5',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '20px',
+                      fontWeight: 'bold',
+                      border: '2px solid #e0e7ff'
+                    }}>
+                      {team.teamName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 style={{fontWeight: 700, fontSize: '16px', color: '#111827'}}>
+                        {team.teamName}
+                      </h3>
+                      <p style={{fontSize: '12px', color: '#6b7280'}}>
+                        {team.regs.length} mentor{team.regs.length !== 1 ? 's' : ''} chosen
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{display: 'flex', gap: '12px', fontSize: '13px', fontWeight: 600}}>
+                    <span style={{color: '#d97706'}}>
+                      {team.regs.filter(r => r.status === 'pending' && !r.done).length} pending
+                    </span>
+                    <span style={{color: '#16a34a'}}>
+                      {team.regs.filter(r => r.status === 'approved' && !r.done).length} approved
+                    </span>
+                    <span style={{color: '#1d4ed8'}}>
+                      {team.regs.filter(r => r.checkedIn && !r.done).length} checked in
+                    </span>
+                    <span style={{color: '#6b7280'}}>
+                      {team.regs.filter(r => r.done).length} done
+                    </span>
+                  </div>
+                </div>
+
+                {/* Registrations */}
+                <div style={{padding: '12px 16px'}}>
+                  {team.regs.map((reg, idx) => (
+                    <RegCard
+                      key={reg.id}
+                      reg={reg}
+                      idx={idx}
+                      slots={slots}
+                      getStatusBadge={getStatusBadge}
+                      getStatus={getStatus}
+                      approve={approve}
+                      reject={reject}
+                      checkIn={checkIn}
+                      markDone={markDone}
+                      undoDone={undoDone}
+                      handleDelete={handleDelete}
+                      handleMove={handleMove}
+                      siblings={team.regs}
+                      showMentor={true}
+                      computedPriority={teamPriorities[reg.id]}
                     />
                   ))}
                 </div>
@@ -280,7 +420,7 @@ function RegCard({
   getStatusBadge, getStatus,
   approve, reject, checkIn, markDone, undoDone,
   handleDelete, handleMove, siblings,
-  showMentor
+  showMentor, computedPriority
 }) {
   const badge = getStatusBadge(reg)
   const status = getStatus(reg)
@@ -331,9 +471,24 @@ function RegCard({
             <span style={{
               fontWeight: 800,
               fontSize: '16px',
-              color: '#1e293b'
+              color: '#1e293b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}>
-              {reg.teamName}
+              {showMentor ? reg.mentorName || 'Unknown Mentor' : reg.teamName}
+              {computedPriority && (
+                <span style={{
+                   padding: '2px 8px',
+                   background: '#fef3c7',
+                   color: '#d97706',
+                   borderRadius: '12px',
+                   fontSize: '11px',
+                   fontWeight: 800
+                }}>
+                  Priority {computedPriority}
+                </span>
+              )}
             </span>
           </div>
           
